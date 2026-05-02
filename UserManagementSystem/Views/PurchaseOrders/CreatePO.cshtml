@@ -1,0 +1,197 @@
+﻿ @model PurchaseOrderDTO
+
+@{
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+
+<form asp-controller="PurchaseOrders" asp-action="CreatePO" method="post">
+    @* <div asp-validation-summary="All" class="text-danger"></div> *@
+    <div class="container mt-4">
+        <div class="card shadow-sm border-0">
+            <div class="card-header bg-primary text-white py-3">
+                <h4 class="mb-0">Create Purchase Order</h4>
+            </div>
+
+            <div class="card-body p-4">
+
+                <div class="row g-3 mb-4">
+                    <div class="col-md-4">
+                        <label asp-for="PONumber" class="form-label fw-bold"></label>
+                        <input asp-for="PONumber" class="form-control" />
+                        <span asp-validation-for="PONumber" class="text-danger"></span>
+                    </div>
+
+                    <div class="col-md-4">
+                        <label asp-for="SupplierName" class="form-label fw-bold"></label>
+                        <input asp-for="SupplierName" class="form-control" />
+                        <span asp-validation-for="SupplierName" class="text-danger"></span>
+                    </div>
+
+                    <div class="col-md-4">
+                        <label asp-for="OrderDate" class="form-label fw-bold"></label>
+                        <input asp-for="OrderDate" type="date" class="form-control" />
+                    </div>
+                </div>
+
+                <table class="table" id="itemsTable">
+                    <thead>
+                        <tr>
+                            <th>Item</th>
+                            <th>Qty</th>
+                            <th>Price</th>
+                            <th>Total</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @for (int i = 0; i < Model.Items.Count; i++)
+                        {
+                            <tr>
+                                <td>
+                                    <input asp-for="Items[i].ItemName" class="form-control"  />
+                                    <span asp-validation-for="Items[i].ItemName" class="text-danger"></span>
+                                </td>
+                                <td>
+                                    <input asp-for="Items[i].Quantity" class="form-control quantity" />
+                                </td>
+                                <td>
+                                    <input asp-for="Items[i].UnitPrice" class="form-control unitPrice" />
+                                </td>
+                                <td>
+                                    <input asp-for="Items[i].LineTotal" class="form-control lineTotal" readonly />
+                                </td>
+                                <td>
+                                    <button type="button" class="btn btn-danger" onclick="removeRow(this)">X</button>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+                <button type="button" class="btn btn-success" onclick="addRow()">Add Item</button>
+                <div class="text-end mt-3">
+                    <h5>Total: <span id="grandTotal">0</span></h5>
+                    <input asp-for="TotalAmount" type="hidden" id="TotalAmount" />
+                </div>
+            </div>
+            <div class="card-footer text-end">
+                <button type="submit" class="btn btn-primary">Submit</button>
+            </div>
+        </div>
+    </div>
+</form>
+
+@section Scripts {
+    
+    <partial name="_ValidationScriptsPartial" />
+
+    <script>
+        function addRow() {
+            let lastRow = document.querySelector("#itemsTable tbody tr:last-child");
+
+            if (lastRow) {
+                
+                let itemNameInput = lastRow.querySelector("input[name$='.ItemName']");
+                let qtyInput = lastRow.querySelector("input[name$='.Quantity']");
+                let priceInput = lastRow.querySelector("input[name$='.UnitPrice']");
+
+                let itemName = itemNameInput.value.trim();
+                let qty = parseFloat(qtyInput.value);
+                let price = parseFloat(priceInput.value);
+
+                let hasError = false;
+
+                // Reset previous borders
+                [itemNameInput, qtyInput, priceInput].forEach(input => input.style.border = "");
+
+                if (!itemName) {
+                    itemNameInput.style.border = "2px solid red";
+                    hasError = true;
+                }
+                if (!qty || qty <= 0) {
+                    qtyInput.style.border = "2px solid red";
+                    hasError = true;
+                }
+                if (!price || price <= 0) {
+                    priceInput.style.border = "2px solid red";
+                    hasError = true;
+                }
+
+                if (hasError) {
+                    alert("Please fill out the current row correctly before adding a new one.");
+                    return;
+                }
+
+            }
+
+            let index = document.querySelectorAll("#itemsTable tbody tr").length;
+            let row = `
+            <tr>
+                <td>
+                            <input name="Items[${index}].ItemName" class="form-control" />
+                    <span class="text-danger field-validation-valid"
+                          data-valmsg-for="Items[${index}].ItemName"
+                          data-valmsg-replace="true"></span>
+                </td>
+                <td>
+                            <input name="Items[${index}].Quantity" value="0" class="form-control quantity" />
+                    <span class="text-danger field-validation-valid"
+                          data-valmsg-for="Items[${index}].Quantity"
+                          data-valmsg-replace="true"></span>
+                </td>
+                <td>
+                            <input name="Items[${index}].UnitPrice"  value="0.00" class="form-control unitPrice" />
+                    <span class="text-danger field-validation-valid"
+                          data-valmsg-for="Items[${index}].UnitPrice"
+                          data-valmsg-replace="true"></span>
+                </td>
+                        <td><input name="Items[${index}].LineTotal" value="0.00" class="form-control lineTotal" readonly /></td>
+                <td><button type="button" class="btn btn-danger" onclick="removeRow(this)">X</button></td>
+            </tr>`;
+
+            document.querySelector("#itemsTable tbody").insertAdjacentHTML("beforeend", row);
+        }
+        function removeRow(btn) {
+            btn.closest("tr").remove();
+
+            document.querySelectorAll("#itemsTable tbody tr").forEach((tr, i) => {
+                tr.querySelectorAll("input").forEach(input => {
+                    let name = input.getAttribute("name");
+                    if (name) input.setAttribute("name", name.replace(/\[\d+\]/, `[${i}]`));
+                });
+                tr.querySelectorAll("span[data-valmsg-for]").forEach(span => {
+                    let valFor = span.getAttribute("data-valmsg-for");
+                    if (valFor) span.setAttribute("data-valmsg-for", valFor.replace(/\[\d+\]/, `[${i}]`));
+                });
+            });
+
+            $.validator.unobtrusive.parse(document.querySelector("#itemsTable tbody"));
+        }
+
+        document.querySelector("#itemsTable tbody").addEventListener("input", function (e) {
+            if (e.target.matches("input[name$='.Quantity'], input[name$='.UnitPrice']")) {
+                updateTotals();
+            }
+        });
+
+        function updateTotals() {
+            let rows = document.querySelectorAll("#itemsTable tbody tr");
+            let grandTotal = 0;
+
+            rows.forEach(row => {
+                let qty = parseFloat(row.querySelector("input[name$='.Quantity']").value) || 0;
+                let price = parseFloat(row.querySelector("input[name$='.UnitPrice']").value) || 0;
+                let lineTotalInput = row.querySelector("input[name$='.LineTotal']");
+
+                let rowTotal = qty * price;
+                lineTotalInput.value = rowTotal.toFixed(2);
+
+                grandTotal += rowTotal;
+            });
+
+            document.getElementById("grandTotal").innerText = grandTotal.toFixed(2);
+            document.getElementById("TotalAmount").value = grandTotal.toFixed(2);
+        }
+    </script>
+}
+
+ 
